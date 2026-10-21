@@ -17,8 +17,8 @@ Raw data is often messy. It has duplicates, wrong data types and missing values.
 | # | Deliverable | Status |
 |---|-------------|--------|
 | 1 | 🐳 Project setup, Docker and PostgreSQL | ✅ Done |
-| 2 | 📥 Load raw data | ⬜ Not started |
-| 3 | 🧹 Clean data with SQL | ⬜ Not started |
+| 2 | 📥 Load raw data | ✅ Done |
+| 3 | 🧹 Clean data with SQL | 🔄 In progress |
 | 4 | ⭐ Star schema | ⬜ Not started |
 | 5 | ✅ Data checks | ⬜ Not started |
 | 6 | ✨ Final polish | ⬜ Not started |
@@ -29,6 +29,11 @@ Raw data is often messy. It has duplicates, wrong data types and missing values.
 olist_pipeline/
 │
 ├── data/                  # CSV files (not uploaded to GitHub)
+├── sql/                   # SQL scripts, run in number order
+│   ├── 01_create_raw_tables.sql
+│   ├── 02_load_raw_data.sql
+│   └── 03_check_raw_counts.sql
+├── docs/                  # My reflections for each deliverable
 ├── docker-compose.yml     # Recipe that starts PostgreSQL
 ├── .env                   # Real password (not uploaded to GitHub)
 ├── .env.example           # Safe copy of .env with a fake password
@@ -54,7 +59,7 @@ Git · GitHub · Docker · PostgreSQL 16 · SQL · Python
 | `.env` | Real settings and password (never saved in Git) |
 | `.env.example` | A safe copy of `.env` with a fake password |
 | `.gitignore` | Tells Git which files to ignore (`.env`, CSV files) |
-| `data/` | Where the CSV files will go |
+| `data/` | Where the CSV files go |
 
 ### 💡 Key Ideas
 - 📦 **Container**: a small, closed box that runs one program.
@@ -71,11 +76,56 @@ Git · GitHub · Docker · PostgreSQL 16 · SQL · Python
    docker exec -it olist_postgres psql -U olist_user -d olist -c "SELECT version();"
 ```
 
+## 📘 Deliverable 2: Loading the Raw Data
+
+### 🧰 What I Built
+- 🗂️ Three schemas: `raw`, `staging` and `warehouse`. Only `raw` is used so far.
+- 📋 Nine tables in `raw`, one for each CSV file.
+- 📥 SQL scripts that create the tables, load the data and check the counts.
+
+### 📄 Files
+| File | What it does |
+|------|--------------|
+| `sql/01_create_raw_tables.sql` | Creates the schemas and the 9 empty raw tables |
+| `sql/02_load_raw_data.sql` | Empties the tables, then loads the 9 CSV files with `COPY` |
+| `sql/03_check_raw_counts.sql` | Counts the rows in all 9 tables in one query |
+| `docker-compose.yml` | Now also shares the `data` folder with the container |
+
+### 💡 Key Ideas
+- 📚 **Schema**: a section of the database, like a section of a library. `raw` holds the untouched copy of the CSV files.
+- 🔤 **All raw columns are TEXT**: loading never fails on a strange value, and zip codes keep their leading zeros.
+- 🚪 **Bind mount** (`./data:/data:ro`): a read-only door that lets the container see my CSV files.
+- 🔁 **TRUNCATE before COPY**: running the load script twice never loads the data twice.
+- ✅ **Check the load**: row counts in the database must match the original files.
+
+### 📊 Rows Loaded
+| Table | Rows |
+|-------|------|
+| `customers` | 99,441 |
+| `geolocation` | 1,000,163 |
+| `orders` | 99,441 |
+| `order_items` | 112,650 |
+| `order_payments` | 103,886 |
+| `order_reviews` | 99,224 |
+| `products` | 32,951 |
+| `sellers` | 3,095 |
+| `product_category_name_translation` | 71 |
+
+### ▶️ How to Run
+1. Download the 9 CSV files from Kaggle (link below) into the `data/` folder.
+2. Make sure the container is running: `docker compose up -d`
+3. Run the three scripts in order:
+```
+   Get-Content sql\01_create_raw_tables.sql | docker exec -i olist_postgres psql -U olist_user -d olist
+   Get-Content sql\02_load_raw_data.sql | docker exec -i olist_postgres psql -U olist_user -d olist
+   Get-Content sql\03_check_raw_counts.sql | docker exec -i olist_postgres psql -U olist_user -d olist
+```
+
 ## 📊 Dataset
 
 **Source:** [Brazilian E-Commerce Public Dataset by Olist, on Kaggle](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
 
-Real orders made at Olist, a Brazilian online marketplace. It has several related tables: orders, customers, products, sellers, payments and reviews.
+Real orders made at Olist, a Brazilian online marketplace. It has 9 related tables: orders, order items, customers, products, sellers, payments, reviews, geolocation and a category name translation.
 
 ## 📬 Connect With Me
 
