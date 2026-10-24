@@ -18,7 +18,7 @@ Raw data is often messy. It has duplicates, wrong data types and missing values.
 |---|-------------|--------|
 | 1 | 🐳 Project setup, Docker and PostgreSQL | ✅ Done |
 | 2 | 📥 Load raw data | ✅ Done |
-| 3 | 🧹 Clean data with SQL | 🔄 In progress |
+| 3 | 🧹 Clean data with SQL | ✅ Done |
 | 4 | ⭐ Star schema | ⬜ Not started |
 | 5 | ✅ Data checks | ⬜ Not started |
 | 6 | ✨ Final polish | ⬜ Not started |
@@ -32,7 +32,9 @@ olist_pipeline/
 ├── sql/                   # SQL scripts, run in number order
 │   ├── 01_create_raw_tables.sql
 │   ├── 02_load_raw_data.sql
-│   └── 03_check_raw_counts.sql
+│   ├── 03_check_raw_counts.sql
+│   ├── 04_create_staging_tables.sql
+│   └── 05_check_staging_counts.sql
 ├── docs/                  # My reflections for each deliverable
 ├── docker-compose.yml     # Recipe that starts PostgreSQL
 ├── .env                   # Real password (not uploaded to GitHub)
@@ -79,7 +81,7 @@ Git · GitHub · Docker · PostgreSQL 16 · SQL · Python
 ## 📘 Deliverable 2: Loading the Raw Data
 
 ### 🧰 What I Built
-- 🗂️ Three schemas: `raw`, `staging` and `warehouse`. Only `raw` is used so far.
+- 🗂️ Three schemas: `raw`, `staging` and `warehouse`.
 - 📋 Nine tables in `raw`, one for each CSV file.
 - 📥 SQL scripts that create the tables, load the data and check the counts.
 
@@ -119,6 +121,55 @@ Git · GitHub · Docker · PostgreSQL 16 · SQL · Python
    Get-Content sql\01_create_raw_tables.sql | docker exec -i olist_postgres psql -U olist_user -d olist
    Get-Content sql\02_load_raw_data.sql | docker exec -i olist_postgres psql -U olist_user -d olist
    Get-Content sql\03_check_raw_counts.sql | docker exec -i olist_postgres psql -U olist_user -d olist
+```
+
+## 📘 Deliverable 3: Cleaning the Data with SQL
+
+### 🧰 What I Built
+- 🧹 Nine tables in the `staging` schema, one for each raw table. The `raw` tables are never changed.
+- 🔍 I first checked every table with the same 4 questions: how many rows, are the ids unique, where are the empty values, and which columns need a real type.
+- 📄 One script that builds all 9 staging tables, and one script that checks them.
+
+### 📄 Files
+| File | What it does |
+|------|--------------|
+| `sql/04_create_staging_tables.sql` | Builds the 9 staging tables from the raw tables |
+| `sql/05_check_staging_counts.sql` | Compares the row counts of raw and staging for all 9 tables |
+
+### 💡 Key Ideas
+- 🥘 **Three layers**: `raw` is the untouched copy, `staging` is the cleaned copy, and `warehouse` (Deliverable 4) is the final shape for analysis.
+- 🔢 **Real types in staging**: dates become `timestamp`, whole numbers become `integer`, money becomes `numeric`. Ids, names, codes and zip codes stay `text`.
+- 🔍 **Look before you fix**: a repeated id is not always a duplicate, and odd data is not always wrong data. I checked each case before I changed anything.
+- 🚫 **Never invent values**: odd values I could not explain were kept as they are, and only impossible values were fixed.
+- 🔁 **Safe to run again**: each table is dropped and rebuilt, so the script gives the same result every time.
+
+### 🧹 What I Fixed
+| Table | Fix |
+|-------|-----|
+| `geolocation` | Kept one copy of each exact duplicate row (1,000,163 → 738,332) |
+| `geolocation` | Points outside Brazil got empty latitude and longitude (the zip code, city and state stay) |
+| `product_category_name_translation` | Added 2 missing English names by hand (71 → 73) |
+| 5 tables | Changed text columns to `timestamp`, `integer` or `numeric` |
+
+### 📊 Raw vs Staging Rows
+| Table | Raw | Staging |
+|-------|-----|---------|
+| `customers` | 99,441 | 99,441 |
+| `geolocation` | 1,000,163 | 738,332 |
+| `orders` | 99,441 | 99,441 |
+| `order_items` | 112,650 | 112,650 |
+| `order_payments` | 103,886 | 103,886 |
+| `order_reviews` | 99,224 | 99,224 |
+| `products` | 32,951 | 32,951 |
+| `sellers` | 3,095 | 3,095 |
+| `product_category_name_translation` | 71 | 73 |
+
+### ▶️ How to Run
+1. Make sure the raw tables are loaded (Deliverable 2).
+2. Build the staging tables, then check them:
+```
+   Get-Content sql\04_create_staging_tables.sql | docker exec -i olist_postgres psql -U olist_user -d olist
+   Get-Content sql\05_check_staging_counts.sql | docker exec -i olist_postgres psql -U olist_user -d olist
 ```
 
 ## 📊 Dataset
