@@ -19,8 +19,8 @@ Raw data is often messy. It has duplicates, wrong data types and missing values.
 | 1 | 🐳 Project setup, Docker and PostgreSQL | ✅ Done |
 | 2 | 📥 Load raw data | ✅ Done |
 | 3 | 🧹 Clean data with SQL | ✅ Done |
-| 4 | ⭐ Star schema | ⬜ Not started |
-| 5 | ✅ Data checks | ⬜ Not started |
+| 4 | ⭐ Star schema | ✅ Done |
+| 5 | ✅ Data checks | 🔄 In progress |
 | 6 | ✨ Final polish | ⬜ Not started |
 
 ## 🗂️ Project Structure
@@ -34,7 +34,9 @@ olist_pipeline/
 │   ├── 02_load_raw_data.sql
 │   ├── 03_check_raw_counts.sql
 │   ├── 04_create_staging_tables.sql
-│   └── 05_check_staging_counts.sql
+│   ├── 05_check_staging_counts.sql
+│   ├── 06_create_warehouse_tables.sql
+│   └── 07_check_warehouse_counts.sql
 ├── docs/                  # My reflections for each deliverable
 ├── docker-compose.yml     # Recipe that starts PostgreSQL
 ├── .env                   # Real password (not uploaded to GitHub)
@@ -137,7 +139,7 @@ Git · GitHub · Docker · PostgreSQL 16 · SQL · Python
 | `sql/05_check_staging_counts.sql` | Compares the row counts of raw and staging for all 9 tables |
 
 ### 💡 Key Ideas
-- 🥘 **Three layers**: `raw` is the untouched copy, `staging` is the cleaned copy, and `warehouse` (Deliverable 4) is the final shape for analysis.
+- 🥘 **Three layers**: `raw` is the untouched copy, `staging` is the cleaned copy, and `warehouse` is the final shape for analysis.
 - 🔢 **Real types in staging**: dates become `timestamp`, whole numbers become `integer`, money becomes `numeric`. Ids, names, codes and zip codes stay `text`.
 - 🔍 **Look before you fix**: a repeated id is not always a duplicate, and odd data is not always wrong data. I checked each case before I changed anything.
 - 🚫 **Never invent values**: odd values I could not explain were kept as they are, and only impossible values were fixed.
@@ -170,6 +172,50 @@ Git · GitHub · Docker · PostgreSQL 16 · SQL · Python
 ```
    Get-Content sql\04_create_staging_tables.sql | docker exec -i olist_postgres psql -U olist_user -d olist
    Get-Content sql\05_check_staging_counts.sql | docker exec -i olist_postgres psql -U olist_user -d olist
+```
+
+## 📘 Deliverable 4: Building the Star Schema
+
+### 🧰 What I Built
+- ⭐ A star schema in the `warehouse` schema: one **fact table** in the middle and four **dimension tables** around it.
+- 🔗 Before building the fact table, I checked that every id has a partner, so no row is lost by a join.
+- 📄 One script that builds the 5 warehouse tables, and one script that checks them.
+
+### 📄 Files
+| File | What it does |
+|------|--------------|
+| `sql/06_create_warehouse_tables.sql` | Builds the 4 dimension tables and the fact table from the staging tables |
+| `sql/07_check_warehouse_counts.sql` | Compares the rows of each warehouse table with the rows we expect |
+
+### 💡 Key Ideas
+- ⭐ **Fact table**: the numbers we add up. One row is one item inside one order.
+- 🗂️ **Dimension tables**: the descriptions (who, what, when) that the fact table points to.
+- 🔑 **Primary key**: a rule that no row can appear twice. If a join repeated a row, the table would fail to build.
+- ➡️ **LEFT JOIN**: keeps every row from the left table. I used it for products, so the 610 products with no category stayed in the table.
+- 🎯 **Grain**: I decide what one row means before building a table, because a wrong grain gives wrong totals without any error.
+- 🚫 **`geolocation` is not in the star on purpose**: it has about 52 map points for each zip code, so a join would repeat customers.
+
+### ⭐ The Star
+| Table | Type | One row is | Rows |
+|-------|------|------------|------|
+| `fact_order_items` | Fact | One item inside one order | 112,650 |
+| `dim_customers` | Dimension | One customer | 99,441 |
+| `dim_products` | Dimension | One product (with the English category name) | 32,951 |
+| `dim_sellers` | Dimension | One seller | 3,095 |
+| `dim_dates` | Dimension | One calendar day (2016-01-01 to 2018-12-31) | 1,096 |
+
+### ✅ Checks
+- 💰 The price total (13,591,643.70) and the freight total (2,251,909.54) are identical in the fact table and in staging.
+- 🔗 No fact row points to a missing customer, product, seller or day.
+- 📅 Every order's purchase day has a row in the calendar.
+- 📦 775 orders have no items (mostly `unavailable` and `canceled`), so they have no rows in the fact table. They stay in `staging.orders`.
+
+### ▶️ How to Run
+1. Make sure the staging tables are built (Deliverable 3).
+2. Build the warehouse tables, then check them:
+```
+   Get-Content sql\06_create_warehouse_tables.sql | docker exec -i olist_postgres psql -U olist_user -d olist
+   Get-Content sql\07_check_warehouse_counts.sql | docker exec -i olist_postgres psql -U olist_user -d olist
 ```
 
 ## 📊 Dataset
