@@ -20,7 +20,7 @@ Raw data is often messy. It has duplicates, wrong data types and missing values.
 | 2 | 📥 Load raw data | ✅ Done |
 | 3 | 🧹 Clean data with SQL | ✅ Done |
 | 4 | ⭐ Star schema | ✅ Done |
-| 5 | ✅ Data checks | 🔄 In progress |
+| 5 | ✅ Data checks | ✅ Done |
 | 6 | ✨ Final polish | ⬜ Not started |
 
 ## 🗂️ Project Structure
@@ -36,7 +36,8 @@ olist_pipeline/
 │   ├── 04_create_staging_tables.sql
 │   ├── 05_check_staging_counts.sql
 │   ├── 06_create_warehouse_tables.sql
-│   └── 07_check_warehouse_counts.sql
+│   ├── 07_check_warehouse_counts.sql
+│   └── 08_data_checks.sql
 ├── docs/                  # My reflections for each deliverable
 ├── docker-compose.yml     # Recipe that starts PostgreSQL
 ├── .env                   # Real password (not uploaded to GitHub)
@@ -216,6 +217,42 @@ Git · GitHub · Docker · PostgreSQL 16 · SQL · Python
 ```
    Get-Content sql\06_create_warehouse_tables.sql | docker exec -i olist_postgres psql -U olist_user -d olist
    Get-Content sql\07_check_warehouse_counts.sql | docker exec -i olist_postgres psql -U olist_user -d olist
+```
+
+## 📘 Deliverable 5: Data Checks
+
+### 🧰 What I Built
+- ✅ One script with **7 data checks**. Each check counts the **bad rows** (the rows that break a rule) and gives a stamp.
+- 📋 All the checks show in **one table**, so one command shows every stamp.
+
+### 📄 Files
+| File | What it does |
+|------|--------------|
+| `sql/08_data_checks.sql` | Runs the 7 checks and shows one stamp for each |
+
+### 💡 Key Ideas
+- 🔢 **A check counts the bad rows**: 0 bad rows means PASS, and the count also shows how big a problem is.
+- 🚦 **Three stamps for a known problem**: PASS for 0 bad rows, WARN for the 8 known orders from Deliverable 3, and FAIL for anything more. The old problem stays visible, and a new problem still raises an alarm.
+- 🛡️ **A check must be able to fail**: I made the delivered-orders check fail first, to see that my checks can find a problem.
+- 🔁 **A check is a second guard**: the primary key already stops repeated items, but the check still works if the key is removed later.
+- ⚠️ **PASS does not mean perfect**: a check only tests the rule I wrote.
+
+### ✅ The Checks
+| Check | Rule | Result |
+|-------|------|--------|
+| `no_duplicate_orders` | Each `order_id` appears once in `staging.orders` | ✅ PASS |
+| `no_duplicate_items` | Each (`order_id`, `order_item_id`) appears once in the fact table | ✅ PASS |
+| `no_orphan_fact_rows` | Every fact row finds its customer, product, seller and day | ✅ PASS |
+| `money_matches_staging` | The price and freight totals in the fact table equal the staging totals | ✅ PASS |
+| `no_negative_money` | No price or freight value is below 0 | ✅ PASS |
+| `review_score_1_to_5` | Every review score is between 1 and 5, and none is empty | ✅ PASS |
+| `delivered_have_delivery_date` | Every `delivered` order has a delivery date | ⚠️ WARN (8 known orders) |
+
+### ▶️ How to Run
+1. Make sure the staging and warehouse tables are built (Deliverables 3 and 4).
+2. Run the checks:
+```
+   Get-Content sql\08_data_checks.sql | docker exec -i olist_postgres psql -U olist_user -d olist
 ```
 
 ## 📊 Dataset
