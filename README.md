@@ -21,7 +21,33 @@ Raw data is often messy. It has duplicates, wrong data types and missing values.
 | 3 | 🧹 Clean data with SQL | ✅ Done |
 | 4 | ⭐ Star schema | ✅ Done |
 | 5 | ✅ Data checks | ✅ Done |
-| 6 | ✨ Final polish | ⬜ Not started |
+| 6 | ✨ Final polish | ✅ Done |
+
+## 🚀 Quick Start: Run the Whole Pipeline
+
+**You need:** Docker Desktop, Git and PowerShell (Windows).
+
+1. Clone the project and open its folder:
+```
+   git clone https://github.com/Mpumlwana/olist_pipeline.git
+   cd olist_pipeline
+```
+2. Download the 9 CSV files from Kaggle (link at the bottom) into the `data/` folder.
+3. Copy `.env.example` to `.env`, and set a password in it:
+```
+   copy .env.example .env
+```
+4. Start Docker Desktop (wait for "Engine running"), then start the database:
+```
+   docker compose up -d
+```
+5. Run the whole pipeline with one command:
+```
+   powershell -ExecutionPolicy Bypass -File .\run_pipeline.ps1
+```
+6. Read the result at the end: the data checks should show **6 PASS and 1 WARN**.
+
+The pipeline runs every file in `sql/` in number order, and **stops at the first error**. It is safe to run again, because every script drops and rebuilds its tables. To start from an empty database, run `docker compose down -v` and then step 4 again.
 
 ## 🗂️ Project Structure
 
@@ -39,6 +65,7 @@ olist_pipeline/
 │   ├── 07_check_warehouse_counts.sql
 │   └── 08_data_checks.sql
 ├── docs/                  # My reflections for each deliverable
+├── run_pipeline.ps1       # Runs all the SQL scripts in order
 ├── docker-compose.yml     # Recipe that starts PostgreSQL
 ├── .env                   # Real password (not uploaded to GitHub)
 ├── .env.example           # Safe copy of .env with a fake password
@@ -48,7 +75,7 @@ olist_pipeline/
 
 ## 🛠️ Tools & Technologies
 
-Git · GitHub · Docker · PostgreSQL 16 · SQL · Python
+Git · GitHub · Docker · PostgreSQL 16 · SQL · PowerShell
 
 ## 📘 Deliverable 1: What We Built and Why
 
@@ -254,6 +281,26 @@ Git · GitHub · Docker · PostgreSQL 16 · SQL · Python
 ```
    Get-Content sql\08_data_checks.sql | docker exec -i olist_postgres psql -U olist_user -d olist
 ```
+
+## 📘 Deliverable 6: Final Polish
+
+### 🧰 What I Built
+- ▶️ One script, `run_pipeline.ps1`, that runs every file in `sql/` in number order, from the raw tables to the data checks.
+- 🧪 A test from scratch: I removed the database and its volume, started a new empty database, and ran the pipeline. The result was the same as before.
+- 🚀 A **Quick Start** in this README, so someone else can run the whole project.
+
+### 📄 Files
+| File | What it does |
+|------|--------------|
+| `run_pipeline.ps1` | Runs all the SQL scripts in order, and stops at the first error |
+
+### 💡 Key Ideas
+- 🛑 **Stop at the first error**: `-v ON_ERROR_STOP=1` makes `psql` fail on an error, and the script stops, so later scripts never build tables from broken data.
+- 🧪 **Test from scratch**: running the pipeline again proves it is safe to repeat, but only an empty database proves it builds everything from the CSV files and the scripts alone.
+- 🔁 **Everything can be rebuilt**: the database is wiped here only because the CSV files and the scripts can recreate it. A real live database would never be wiped like this.
+
+### ▶️ How to Run
+See the **Quick Start** above.
 
 ## 📊 Dataset
 
